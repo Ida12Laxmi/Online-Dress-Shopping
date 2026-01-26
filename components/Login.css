@@ -1,0 +1,64 @@
+/* Container for the whole login box */
+.form-container {
+    width: 350px;
+    margin: 80px auto;
+    padding: 30px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+/* Heading */
+.form-container h1 {
+    font-size: 28px;
+    margin-bottom: 25px;
+    color: #333;
+}
+
+/* Input fields */
+.form-container input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+    font-size: 15px;
+    transition: 0.3s;
+}
+
+/* Input focus effect */
+.form-container input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0,123,255,0.4);
+}
+
+/* Button style */
+.form-container button {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    color: white;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: 0.3s;
+}
+
+/* Button hover */
+.form-container button:hover {
+    background-color: #0056b3;
+}
+
+/* For small screens */
+@media (max-width: 400px) {
+    .form-container {
+        width: 90%;
+        padding: 20px;
+    }
+}
+

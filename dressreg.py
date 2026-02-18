@@ -15,7 +15,7 @@ app.register_blueprint(search_bp)
 app.register_blueprint(orders_bp)
 UPLOAD_FOLDER="C:/Users/admin/Desktop/javascript/my-app/backend/image/"
 os.makedirs(UPLOAD_FOLDER,exist_ok=True)
-
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 #orders_bp = Blueprint("orders", __name__, url_prefix="/api")
 
 @app.route('/register', methods=['POST'])
@@ -97,45 +97,6 @@ def login():
          cursor.close()
          conn.close()
 
-#RegisterAPI
-
-@app.route('/dressreg', methods=['POST'])
-def dressreg():
-   # data = request.get_json()
-    image=request.files.get('upload_image')
-    dn=request.form.get('dressName')
-    p=request.form.get('price')
-   
-    
-    if not all([image,dn,p]):
-        return jsonify({"error" : "All fields are required"}),400
-    
-    image_path=os.path.join(UPLOAD_FOLDER,image.filename)
-    image.save(image_path)
-
-    try: 
-        conn=get_db_connection()
-        cursor=conn.cursor()
-
-      #  cursor.execute("SELECT * FROM clothes WHERE id= %s", (id, ))
-       # if cursor.fetchone():
-          #  return jsonify ({"error" : "Clothes already registered"}),400
-        
-        sql="""INSERT INTO clothes (cloth_name, cloth_price, cloth_image)
-                 VALUES (%s, %s, %s)"""
-        cursor.execute(sql,(dn,p,image.filename))
-
-        conn.commit()
-
-        return jsonify({"message":"Registration successful"}), 201
-    
-    except Exception as e:
-        print("Error : ",e)
-        return jsonify({"error":str(e)}),500
-    
-    finally:
-        cursor.close()
-        conn.close()
 
 #DressAPI
 
@@ -199,76 +160,6 @@ def esewa_pay():
       </body>
     </html>
     """
-
-#calendar
-@app.route("/app/calendar")
-def calendar():  
-    # 1. Get query parameters from the frontend
-    try:
-        year = int(request.args.get("year", 2082))
-        month = int(request.args.get("month", 9))
-    except ValueError:
-        return jsonify({"error": "Invalid year or month"}), 400
-
-    # 2. Setup Nepali month names
-    nepali_months = [
-        "बैशाख", "जेठ", "असार", "श्रावण", "भदौ", "आश्विन",
-        "कार्तिक", "मंसिर", "पौष", "माघ", "फाल्गुण", "चैत्र"
-    ]
-
-    english_months = [
-        "Apr/May", "May/Jun", "Jun/Jul", "Jul/Aug", "Aug/Sep", "Sep/Oct",
-        "Oct/Nov", "Nov/Dec", "Dec/Jan", "Jan/Feb", "Feb/Mar", "Mar/Apr"
-    ]
-
-    # 3. Calendar Data for 2082 BS (Static Mapping)
-    # start_date: English date of the 1st of that Nepali month
-    # days: Total days in that month
-    # start_day: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-    calendar_config = {
-        1:  {"start_date": datetime(2025, 4, 14),  "days": 31, "start_day": 1},
-        2:  {"start_date": datetime(2025, 5, 15),  "days": 31, "start_day": 4},
-        3:  {"start_date": datetime(2025, 6, 15),  "days": 32, "start_day": 0},
-        4:  {"start_date": datetime(2025, 7, 17),  "days": 32, "start_day": 4},
-        5:  {"start_date": datetime(2025, 8, 18),  "days": 31, "start_day": 1},
-        6:  {"start_date": datetime(2025, 9, 18),  "days": 30, "start_day": 4},
-        7:  {"start_date": datetime(2025, 10, 18), "days": 30, "start_day": 6},
-        8:  {"start_date": datetime(2025, 11, 17), "days": 30, "start_day": 1},
-        9:  {"start_date": datetime(2025, 12, 17), "days": 30, "start_day": 3},
-        10: {"start_date": datetime(2026, 1, 15),  "days": 29, "start_day": 4},
-        11: {"start_date": datetime(2026, 2, 13),  "days": 30, "start_day": 6},
-        12: {"start_date": datetime(2026, 3, 15),  "days": 30, "start_day": 0},
-    }
-
-    # 4. Check if month exists in our config
-    config = calendar_config.get(month)
-    if not config:
-        return jsonify({"error": "Data for this month is not available"}), 404
-
-    anchor_date = config["start_date"]
-    days_data = []
-
-    # 5. Loop to generate individual days
-    for i in range(config["days"]):
-        # This timedelta addition handles the rollover from Dec 31 to Jan 1 automatically
-        current_eng_date = anchor_date + timedelta(days=i)
-        
-        days_data.append({
-            "nepaliDate": i + 1,
-            "englishDate": current_eng_date.day, # Corrects the '40+' issue
-            "isSaturday": (config["start_day"] + i) % 7 == 6
-        })
-
-
-    # 6. Final response
-    return jsonify({
-        "nepaliMonth": nepali_months[month-1],
-        "nepaliYear": year,
-       # "englishMonth": anchor_date.strftime("%B"),
-       "englishMonth": english_months[month-1],
-        "startDay": config["start_day"], # Required for the empty grid slots
-        "days": days_data
-    })
 
 @app.route("/khalti/pay")
 def khalti_pay():
@@ -350,12 +241,17 @@ def create_order():
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+
           #Get clothes image from clothes table
         cursor.execute("""SELECT cloth_image from clothes WHERE cid=%s""",(data["c_id"],))
         cloth=cursor.fetchone()
         if not cloth:
             return jsonify({"error":"Cloth not found"}),404
         clothes_image=cloth["cloth_image"]
+
+        cursor.execute("SELECT cus_id FROM customer WHERE cus_id = %s", (idcustomer,))
+        if not cursor.fetchone():
+         return jsonify({"error": "Invalid Customer ID"}), 400
 
         sql = """
         INSERT INTO orders (
@@ -416,7 +312,54 @@ def payment_success():
 
     return jsonify({"message":"Payment verified"}),200
 
+@app.route('/order/<string:order_uuid>',methods=["DELETE"])
+def delete_order(order_uuid):
+    conn=None
+    cursor=None
+    try:
+        conn=get_db_connection()
+        cursor=conn.cursor(dictionary=True)
+        cursor.execute("SELECT clothes_image FROM orders where order_uuid=%s",(order_uuid,))
+        dress=cursor.fetchone()
+        if not dress:
+            return jsonify({"error": "Order not found"}), 404
+         #Delete image file
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], dress['clothes_image'])
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        cursor.execute("DELETE FROM orders where order_uuid=%s",(order_uuid,))
+        conn.commit()
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+    return jsonify({"message":"Order deleted"}),200
 
+
+#==Notification==
+@app.route("/notifications/<int:cus_id>",methods=['GET'])
+def get_notifications(cus_id):
+    print("CUS_ID RECEIVED:", cus_id)
+    conn=get_db_connection()
+    cursor=conn.cursor(dictionary=True)
+
+    cursor.execute("""
+SELECT n.*, c.cloth_name, c.cloth_image 
+FROM notifications n 
+LEFT JOIN clothes c ON n.c_id = c.cid 
+WHERE n.cus_id = %s 
+ORDER BY n.created_at DESC 
+""", (cus_id,))
+
+    data=cursor.fetchall()
+    print("NOTIFICATIONS FOUND:", data)
+    cursor.close()
+    conn.close()
+
+    return jsonify(data),200
 
 #--APP
 if __name__ == '__main__':

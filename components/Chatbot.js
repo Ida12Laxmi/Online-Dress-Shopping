@@ -1,138 +1,126 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const Chatbot = () => {
-  const [messages, setMessages] = useState([
-    { role: 'bot', content: 'My name is Meta AI. How can I help you?' }
-  ]);
+  const [messages, setMessages] = useState([{ role: 'bot', content: 'My name is Meta AI. How can I help you?' }]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false); // New: Show when AI is thinking
-  const fileInputRef = useRef(null); // Ref for hidden file input
+  const [selectedFile, setSelectedFile] = useState(null); 
+  const [isTyping, setIsTyping] = useState(false);
+  const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle File Selection and Upload
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setMessages((prev) => [...prev, { role: "user", content: `📎 Uploading: ${file.name}` }]);
-    setIsTyping(true);
-
-    try {
-      const res = await fetch("http://localhost:8000/upload", {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", content: data.message || "File received!" }
-      ]);
-    } catch (err) {
-      setMessages((prev) => [...prev, { role: "bot", content: "File upload failed." }]);
-    } finally {
-      setIsTyping(false);
-      e.target.value = null; // Reset input
-    }
+    if (file) setSelectedFile(file);
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && !selectedFile) return;
 
-    const userMsg = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMsg]);
+    // Display image name and text together in the bubble
+    const userDisplay = selectedFile ? `📎 ${selectedFile.name}${input ? `: ${input}` : ""}` : input;
+    setMessages((prev) => [...prev, { role: 'user', content: userDisplay }]);
+    
     const currentInput = input;
+    const currentFile = selectedFile;
+    
     setInput("");
-    setIsTyping(true); // Start loading animation
+    setSelectedFile(null);
+    setIsTyping(true);
 
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const formData = new FormData();
+      formData.append("message", currentInput || "Analyze this image");
+      if (currentFile) formData.append("file", currentFile);
+
+      const response = await fetch("http://localhost:8000/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: currentInput }),
+        body: formData, 
       });
       
       const data = await response.json();
-      
       if (data.reply) {
         setMessages((prev) => [...prev, { role: 'bot', content: data.reply }]);
       } else if (data.error) {
         setMessages((prev) => [...prev, { role: 'bot', content: "Error: " + data.error }]);
       }
     } catch (err) {
-      setMessages((prev) => [...prev, { role: 'bot', content: "Cannot connect to server." }]);
+      setMessages((prev) => [...prev, { role: 'bot', content: "Server connection failed." }]);
     } finally {
-      setIsTyping(false); // Stop loading animation
+      setIsTyping(false);
     }
   };
 
   return (
-    <div style={{ border: '1px solid #ddd', borderRadius: '20px', width: '380px', height: '500px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-      {/* Meta AI Header */}
-      <div style={{ padding: '15px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'linear-gradient(to right, #4facfe 0%, #00f2fe 100%)' }}></div>
-        <span style={{ fontWeight: 'bold' }}>Meta AI</span>
+    <div style={{ border: '1px solid #ddd', borderRadius: '20px', width: '400px', height: '550px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', fontFamily: 'sans-serif', margin: '20px auto', boxShadow: '0 8px 24px rgba(0,0,0,0.1)' }}>
+      {/* Header */}
+      <div style={{ padding: '15px 20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(45deg, #00f2fe 0%, #4facfe 100%)' }}></div>
+        <span style={{ fontWeight: '600', fontSize: '16px' }}>Meta AI</span>
       </div>
 
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Messages area */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
         {messages.map((msg, index) => (
           <div key={index} style={{
             alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-            backgroundColor: msg.role === 'user' ? '#007bff' : '#f1f1f2',
+            backgroundColor: msg.role === 'user' ? '#007bff' : '#f0f2f5',
             color: msg.role === 'user' ? 'white' : '#1c1e21',
-            padding: '10px 15px',
+            padding: '10px 16px',
             borderRadius: msg.role === 'user' ? '18px 18px 2px 18px' : '18px 18px 18px 2px',
-            maxWidth: '75%',
+            maxWidth: '80%',
             fontSize: '14px',
-            lineHeight: '1.4'
+            lineHeight: '1.5',
+            whiteSpace: 'pre-wrap'
           }}>
             {msg.content}
           </div>
         ))}
-        {isTyping && <div style={{ fontSize: '12px', color: '#999' }}>AI is typing...</div>}
+        {isTyping && <div style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>Meta AI is thinking...</div>}
         <div ref={scrollRef} />
       </div>
 
-      
-
-      {/* Input Field */}
-      <div style={{ padding: '15px', borderTop: '1px solid #eee' }}>
-        <div style={{ display: 'flex', gap: '8px', backgroundColor: '#f0f2f5', padding: '5px 12px', borderRadius: '25px' }}>
-          {/* Hidden File Input */}
+      {/* Input section */}
+      <div style={{ padding: '15px' }}>
+        {selectedFile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '5px 10px', backgroundColor: '#e7f3ff', borderRadius: '10px', width: 'fit-content' }}>
+            <span style={{ fontSize: '12px', color: '#007bff' }}>📎 {selectedFile.name}</span>
+            <button onClick={() => setSelectedFile(null)} style={{ border: 'none', background: 'none', color: '#ff4d4f', cursor: 'pointer', fontWeight: 'bold' }}>×</button>
+          </div>
+        )}
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#f0f2f5', padding: '8px 15px', borderRadius: '25px' }}>
           <input 
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileChange} 
             style={{ display: 'none' }} 
-            accept="image/*,video/*,.pdf,.doc"
+            accept="image/*" 
           />
-          
-          {/* Attachment Button (The + Icon) */}
           <button 
-            onClick={() => fileInputRef.current.click()}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '20px', color: '#65676b', display: 'flex', alignItems: 'center' }}
-          >
-            +
-          </button>
+            onClick={() => fileInputRef.current.click()} 
+            style={{ border: 'none', background: 'transparent', fontSize: '22px', color: '#65676b', cursor: 'pointer', display: 'flex' }}
+          >+</button>
+          
           <input 
-            style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', padding: '8px', fontSize: '14px' }}
+            style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '14px', padding: '5px' }}
             value={input} 
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask Meta AI anything..."
+            placeholder="Ask Meta AI anything..." 
           />
-          <button onClick={handleSend} style={{ border: 'none', background: 'transparent', color: '#007bff', fontWeight: 'bold', cursor: 'pointer' }}>Send</button>
+          
+          <button 
+            onClick={handleSend} 
+            style={{ border: 'none', background: 'transparent', color: '#007bff', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}
+          >Send</button>
         </div>
       </div>
-      </div>
-  
+    </div>
   );
 };
 

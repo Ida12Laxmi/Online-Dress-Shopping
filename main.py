@@ -34,10 +34,10 @@ def root():
      return {"status": "Backend running 👗"}
 
 @app.post("/upload")
-async def upload_file(message: str = Form(...), 
-                    file: Optional[UploadFile] = File(None)):
+async def upload_file(message: str = Form(...), file: Optional[UploadFile] = File(None)):
     try:
-        content_list = [{"type": "text", "text": message}]
+        # Provide a default text if the user only sends an image
+        content_list = [{"type": "text", "text": message or "Analyze this image for me."}]
         
         if file:
             contents = await file.read()
@@ -48,7 +48,8 @@ async def upload_file(message: str = Form(...),
             })
 
         response = client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview", # Vision model is required
+            # UPDATED: Use the current February 2026 production vision model
+            model="meta-llama/llama-4-scout-17b-16e-instruct", 
             messages=[
                 {"role": "system", "content": "You are a fashion assistant. Analyze the image if provided."},
                 {"role": "user", "content": content_list}
@@ -57,9 +58,8 @@ async def upload_file(message: str = Form(...),
         return {"reply": response.choices[0].message.content}
     except Exception as e:
         return {"error": str(e)}
-
 #post
-@app.post("/chat")
+"""@app.post("/chat")
 def chat(req: chatRequest):
     user_message = req.message
     try:
@@ -77,3 +77,5 @@ def chat(req: chatRequest):
         return {"reply": ai_reply}
     except Exception as e:
         return {"error": str(e)}
+        """
+
